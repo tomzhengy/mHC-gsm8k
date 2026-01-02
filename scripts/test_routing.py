@@ -5,6 +5,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from routing import MultiStreamDecoder, greedy_decode
 
 
+def safe_float(v):
+    """Safely convert a value (possibly tensor) to float for printing."""
+    if torch.is_tensor(v):
+        return v.detach().float().cpu().item()
+    return float(v)
+
+
 def test_wrapper_loads(model_name: str, device: str = "cuda"):
     """Test 1: Wrapper loads and wraps model correctly."""
     print(f"\n{'='*60}")
@@ -15,9 +22,11 @@ def test_wrapper_loads(model_name: str, device: str = "cuda"):
     base_model = AutoModelForCausalLM.from_pretrained(
         model_name,
         torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        device_map=device,
         trust_remote_code=True,
     )
+    # Manually move to device (don't use device_map for single GPU)
+    base_model = base_model.to(device)
+    base_model.eval()
     
     print("Wrapping with MultiStreamDecoder (n_streams=4)")
     wrapped = MultiStreamDecoder(
@@ -27,6 +36,10 @@ def test_wrapper_loads(model_name: str, device: str = "cuda"):
         collect_diagnostics=True,
     )
     wrapped.freeze_base()
+    
+    # CRITICAL: Set eval mode on both wrapper and base
+    wrapped.eval()
+    wrapped.base.eval()
     
     # Move mixing module to same device as base model
     if device == "cuda":
@@ -46,6 +59,10 @@ def test_identity_behavior(wrapped: MultiStreamDecoder, tokenizer, device: str =
     print("Test 2: Identity behavior (g=0)")
     print(f"{'='*60}")
     
+    # Ensure eval mode
+    wrapped.eval()
+    wrapped.base.eval()
+    
     test_prompt = "The capital of France is"
     inputs = tokenizer(test_prompt, return_tensors="pt").to(device)
     
@@ -63,15 +80,30 @@ def test_identity_behavior(wrapped: MultiStreamDecoder, tokenizer, device: str =
     diff = (base_logits - wrapped_logits).abs().mean().item()
     max_diff = (base_logits - wrapped_logits).abs().max().item()
     
+    # Relative error
+    mean_logits = base_logits.abs().mean().item()
+    rel_diff = diff / (mean_logits + 1e-8)
+    
+    # Set tolerance based on dtype
+    dtype = base_logits.dtype
+    if dtype == torch.float16 or dtype == torch.bfloat16:
+        tol_mean, tol_max = 1e-3, 5e-3
+    else:
+        tol_mean, tol_max = 1e-5, 1e-4
+    
     print(f"   Prompt: '{test_prompt}'")
-    print(f"   Mean absolute difference: {diff:.6f}")
-    print(f"   Max absolute difference: {max_diff:.6f}")
+    print(f"   Dtype: {dtype}")
+    print(f"   Mean absolute difference: {diff:.2e} (tol: {tol_mean:.0e})")
+    print(f"   Max absolute difference: {max_diff:.2e} (tol: {tol_max:.0e})")
+    print(f"   Relative difference: {rel_diff:.2e}")
     
     # Should be very close (small numerical differences from clone() operations)
-    if diff < 0.01:
-        print(f"✅ g=0 produces baseline-equivalent outputs")
+    if diff < tol_mean and max_diff < tol_max:
+        print(f"✅ g=0 produces baseline-equivalent outputs (within tolerance)")
+    elif diff < 0.01:
+        print(f"⚠️  Close but above strict tolerance (may be OK)")
     else:
-        print(f"⚠️  Larger than expected difference (may be OK, check manually)")
+        print(f"❌ Larger than expected difference - check wrapper implementation")
     
     # Check next token prediction is same
     base_next = base_logits[0, -1].argmax().item()
@@ -94,6 +126,7 @@ def test_mixing_effect(wrapped: MultiStreamDecoder, tokenizer, device: str = "cu
     print("Test 3: Mixing effect (g=0 vs g=0.5)")
     print(f"{'='*60}")
     
+    wrapped.eval()
     test_prompt = "The capital of France is"
     inputs = tokenizer(test_prompt, return_tensors="pt").to(device)
     
@@ -162,16 +195,16 @@ def test_diagnostics(wrapped: MultiStreamDecoder, tokenizer, device: str = "cuda
     print("   Mixing matrix diagnostics:")
     if out.mixing_diagnostics:
         for k, v in out.mixing_diagnostics.items():
-            print(f"     {k}: {v:.4f}")
+            print(f"     {k}: {safe_float(v):.4f}")
     
     print("\n   Stream diagnostics:")
     if out.stream_diagnostics:
         for k, v in out.stream_diagnostics.items():
-            print(f"     {k}: {v:.4f}")
+            print(f"     {k}: {safe_float(v):.4f}")
     
     # Check for healthy values
     if out.stream_diagnostics:
-        ratio = out.stream_diagnostics.get("stream_norm_ratio", 1.0)
+        ratio = safe_float(out.stream_diagnostics.get("stream_norm_ratio", 1.0))
         if ratio < 10:
             print(f"✅ Stream norms are healthy (ratio={ratio:.2f})")
         else:
