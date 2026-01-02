@@ -183,7 +183,7 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default="Qwen/Qwen3-4B-Instruct",
+        default="Qwen/Qwen3-4B-Instruct-2507",
         help="Model to test with",
     )
     parser.add_argument(
