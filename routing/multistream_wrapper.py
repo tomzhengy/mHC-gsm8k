@@ -179,7 +179,8 @@ class MultiStreamDecoder(nn.Module):
         streams = inputs_embeds.unsqueeze(0).expand(self.n_streams, -1, -1, -1).clone()
         
         # Get mixing matrix once (it's the same for all layers in MVP)
-        M = self.mixing()
+        # Ensure mixing matrix is on the same device as the streams
+        M = self.mixing().to(device=device, dtype=dtype)
         
         # Normalize gate format
         if isinstance(g, list):

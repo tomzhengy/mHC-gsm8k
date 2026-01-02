@@ -1,19 +1,3 @@
-#!/usr/bin/env python3
-"""
-Test script to verify the multi-stream routing wrapper works correctly.
-
-Tests:
-1. Wrapper loads successfully with a small model
-2. g=0 produces outputs similar to baseline (identity behavior)
-3. g>0 produces different outputs (mixing has effect)
-4. Greedy decoding works end-to-end
-5. Diagnostics are computed correctly
-
-Usage:
-    python scripts/test_routing.py
-    python scripts/test_routing.py --model Qwen/Qwen2-0.5B-Instruct
-"""
-
 import argparse
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -43,6 +27,10 @@ def test_wrapper_loads(model_name: str, device: str = "cuda"):
         collect_diagnostics=True,
     )
     wrapped.freeze_base()
+    
+    # Move mixing module to same device as base model
+    if device == "cuda":
+        wrapped.mixing = wrapped.mixing.cuda()
     
     print(f"✅ Wrapper created successfully")
     print(f"   - Number of layers: {wrapped.num_layers}")

@@ -52,7 +52,7 @@ def base_model(model_name, device):
 
 
 @pytest.fixture(scope="module")
-def wrapped_model(base_model):
+def wrapped_model(base_model, device):
     """Create wrapped model once for all tests."""
     wrapped = MultiStreamDecoder(
         base_model,
@@ -62,6 +62,11 @@ def wrapped_model(base_model):
     )
     wrapped.freeze_base()
     wrapped.eval()
+    
+    # Move mixing module to same device as base model
+    if device == "cuda":
+        wrapped.mixing = wrapped.mixing.cuda()
+    
     return wrapped
 
 
