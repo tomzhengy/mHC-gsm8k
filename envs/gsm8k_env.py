@@ -212,6 +212,8 @@ class GSM8KEnv(gym.Env):
         
         # Generate answer
         self.model.eval()
+        prompt_len = self._current_inputs.input_ids.shape[1]
+        
         with torch.no_grad():
             output_ids = greedy_decode(
                 self.model,
@@ -222,9 +224,9 @@ class GSM8KEnv(gym.Env):
                 attention_mask=self._current_inputs.attention_mask,
             )
         
-        # Decode generated text
-        generated_text = self.tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        response = generated_text[len(self._current_prompt):]
+        # Decode only the newly generated tokens (slice by token index, not string)
+        response_ids = output_ids[0, prompt_len:]
+        response = self.tokenizer.decode(response_ids, skip_special_tokens=True)
         
         # Extract predicted answer
         predicted = self._extract_answer(response)
