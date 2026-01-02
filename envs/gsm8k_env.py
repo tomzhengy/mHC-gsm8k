@@ -145,6 +145,51 @@ class GSM8KEnv(gym.Env):
         
         return None
     
+    def _normalize_number(self, s: Optional[str]) -> Optional[float]:
+        """
+        Convert string to canonical numeric form.
+        
+        Handles: "42", "42.0", " 42 ", "42,000", etc.
+        Returns None if not parseable.
+        """
+        if s is None:
+            return None
+        
+        # Clean up: strip whitespace, remove commas
+        s = s.strip().replace(",", "")
+        
+        try:
+            # Try parsing as float
+            return float(s)
+        except ValueError:
+            return None
+    
+    def _answers_match(self, predicted: Optional[str], expected: Optional[str]) -> bool:
+        """
+        Compare answers with numeric normalization.
+        
+        - "42" == "42.0" == " 42 " → True
+        - GSM8K answers are integers, so we compare as int when possible
+        - Falls back to string comparison if not numeric
+        """
+        if predicted is None or expected is None:
+            return False
+        
+        pred_num = self._normalize_number(predicted)
+        exp_num = self._normalize_number(expected)
+        
+        # If both parse as numbers, compare numerically
+        if pred_num is not None and exp_num is not None:
+            # GSM8K uses integers - check if they're equal as integers
+            # (handles 42 vs 42.0)
+            if pred_num == int(pred_num) and exp_num == int(exp_num):
+                return int(pred_num) == int(exp_num)
+            # Otherwise compare as floats with small tolerance
+            return abs(pred_num - exp_num) < 1e-6
+        
+        # Fall back to string comparison (stripped)
+        return predicted.strip() == expected.strip()
+    
     def reset(
         self,
         *,
@@ -232,8 +277,8 @@ class GSM8KEnv(gym.Env):
         predicted = self._extract_answer(response)
         expected = self._current_problem["final_answer"]
         
-        # Compute reward (exact match)
-        correct = predicted == expected
+        # Compute reward (numeric match)
+        correct = self._answers_match(predicted, expected)
         reward = 1.0 if correct else 0.0
         
         # Update statistics
