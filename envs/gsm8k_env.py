@@ -190,6 +190,33 @@ class GSM8KEnv(gym.Env):
         # Fall back to string comparison (stripped)
         return predicted.strip() == expected.strip()
     
+    def _get_expected_answer(self, problem: dict) -> Optional[str]:
+        """
+        Get expected answer from problem dict with fallback logic.
+        
+        Handles different dataset formats:
+        - Our prepared format: {"final_answer": "42"}
+        - Raw HF GSM8K: {"answer": "... #### 42"}
+        - Raw HF with "Answer" key
+        """
+        # Try our prepared format first
+        if "final_answer" in problem:
+            return problem["final_answer"]
+        
+        # Fallback: extract from "answer" field (raw HF format)
+        if "answer" in problem:
+            return self._extract_answer(problem["answer"])
+        
+        # Fallback: try "Answer" key (some datasets use capital)
+        if "Answer" in problem:
+            ans = problem["Answer"]
+            # Could be a number directly or a string
+            if isinstance(ans, (int, float)):
+                return str(int(ans) if ans == int(ans) else ans)
+            return self._extract_answer(str(ans))
+        
+        return None
+    
     def reset(
         self,
         *,
@@ -229,7 +256,7 @@ class GSM8KEnv(gym.Env):
         
         info = {
             "question": self._current_problem["question"],
-            "expected_answer": self._current_problem["final_answer"],
+            "expected_answer": self._get_expected_answer(self._current_problem),
             "prompt_length": prompt_length,
         }
         
@@ -275,7 +302,7 @@ class GSM8KEnv(gym.Env):
         
         # Extract predicted answer
         predicted = self._extract_answer(response)
-        expected = self._current_problem["final_answer"]
+        expected = self._get_expected_answer(self._current_problem)
         
         # Compute reward (numeric match)
         correct = self._answers_match(predicted, expected)
