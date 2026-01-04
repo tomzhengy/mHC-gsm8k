@@ -24,8 +24,8 @@ class GPTConfig:
     mhc_num_streams: int = 4          # expansion rate (n)
     mhc_sinkhorn_iters: int = 50      # iterations for doubly-stochastic projection (50 for tau=0.05)
     mhc_sinkhorn_tau: float = 0.05    # temperature (lower = sharper routing)
-    mhc_gate_noise: bool = True       # add noise to gate during training (for RL robustness)
-    mhc_gate_explore_prob: float = 0.2  # probability of sampling random gate [0,1]
+    mhc_gate_noise: bool = False      # OFF by default - verify baseline first, then enable for RL
+    mhc_gate_explore_prob: float = 0.2  # probability of sampling random gate [0.1,0.9]
     mhc_gate_noise_scale: float = 0.3   # ±30% perturbation when not exploring
 
 

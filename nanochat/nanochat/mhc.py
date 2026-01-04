@@ -187,8 +187,9 @@ class DynamicMHC(nn.Module):
         y = branch_fn(x_pre)  # [B, T, C]
         
         # === DEPTH CONNECTION ===
-        # residual mixing: x_mixed[b,t,j,c] = sum_i H_res[b,t,i,j] * x_streams[b,t,i,c]
-        x_mixed = torch.einsum('btij,btic->btjc', H_res, x_streams)  # [B, T, n, C]
+        # residual mixing (per mHC paper): x_res[b,t,i,c] = sum_j H_res[b,t,i,j] * x[b,t,j,c]
+        # H_res[i,j] = weight from input stream j to output stream i (standard matrix convention)
+        x_mixed = torch.einsum('btij,btjc->btic', H_res, x_streams)  # [B, T, n, C]
         
         # distribute branch output to streams
         # y_distributed[b,t,j,c] = H_post[b,t,j] * y[b,t,c]
