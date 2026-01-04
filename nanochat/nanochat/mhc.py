@@ -37,9 +37,11 @@ def sinkhorn_log(
         # column normalization: v_j = log_marginal - logsumexp_i(Z_ij + u_i)
         v = log_marginal - torch.logsumexp(Z + u.unsqueeze(-1), dim=-2)
     
-    # convert back from log-space
-    # note: after even number of iterations, columns are exactly normalized, rows approximately
-    # the small row error (~0.2%) is acceptable for training stability
+    # final row normalization to ensure ROWS sum to exactly 1
+    # this is critical because our einsum uses: x_mixed[i] = sum_j H[i,j] * x[j]
+    # so ROW i provides the weights for output stream i
+    u = log_marginal - torch.logsumexp(Z + v.unsqueeze(-2), dim=-1)
+    
     return torch.exp(Z + u.unsqueeze(-1) + v.unsqueeze(-2))
 
 
