@@ -280,6 +280,9 @@ class GPT(nn.Module):
         # Separate out all parameters into 3 groups (matrix, embedding, lm_head)
         matrix_params = list(self.transformer.h.parameters())
         embedding_params = list(self.transformer.wte.parameters())
+        # include stream_embed with embeddings if mHC is enabled
+        if self.config.mhc_enabled and hasattr(self, 'stream_embed'):
+            embedding_params = embedding_params + [self.stream_embed]
         lm_head_params = list(self.lm_head.parameters())
         assert len(list(self.parameters())) == len(matrix_params) + len(embedding_params) + len(lm_head_params)
         # Create the AdamW optimizer for the embedding and lm_head
