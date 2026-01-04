@@ -40,6 +40,9 @@ fi
 echo "Starting training..."
 echo ""
 
+# Disable torch.compile globally (Muon optimizer has @torch.compile internally)
+export TORCH_COMPILE_DISABLE=1
+
 python -m scripts.base_train \
     --depth=$DEPTH \
     --num_iterations=$STEPS \
