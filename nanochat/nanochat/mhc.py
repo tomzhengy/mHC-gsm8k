@@ -236,6 +236,29 @@ class DynamicMHC(nn.Module):
         else:
             self._current_explore_prob = target_explore
     
+    def get_sinkhorn_diagnostics(self) -> dict:
+        """
+        Compute row/column errors for the current H_res_base after Sinkhorn.
+        Call this periodically during training to verify doubly-stochastic property.
+        """
+        n = self.num_streams
+        # compute H_res from base (no dynamic adjustment, just base matrix)
+        H_res = sinkhorn_log(
+            self.H_res_base.unsqueeze(0).unsqueeze(0),  # [1, 1, n, n]
+            self.sinkhorn_iters,
+            self.sinkhorn_tau
+        )[0, 0]  # [n, n]
+        
+        row_err = (H_res.sum(dim=-1) - 1).abs().mean().item()
+        col_err = (H_res.sum(dim=-2) - 1).abs().mean().item()
+        
+        return {
+            "row_err": row_err,
+            "col_err": col_err,
+            "diag_mean": H_res.diag().mean().item(),
+            "offdiag_mean": H_res[~torch.eye(n, dtype=bool, device=H_res.device)].mean().item(),
+        }
+    
     def extra_repr(self) -> str:
         return (
             f"dim={self.dim}, num_streams={self.num_streams}, "

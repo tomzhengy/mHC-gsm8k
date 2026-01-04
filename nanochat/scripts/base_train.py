@@ -84,6 +84,27 @@ def collect_mhc_metrics(model):
         metrics["mhc/explore_prob"] = first_block.mhc_attn._current_explore_prob
         metrics["mhc/gate_value"] = first_block.mhc_attn.get_gate()
     
+    # sinkhorn diagnostics (row/col errors for doubly-stochastic check)
+    # sample from first, middle, and last block
+    n_blocks = len(model.transformer.h)
+    sample_indices = [0, n_blocks // 2, n_blocks - 1]
+    row_errs, col_errs, diag_means, offdiag_means = [], [], [], []
+    
+    for idx in sample_indices:
+        block = model.transformer.h[idx]
+        if hasattr(block, 'mhc_attn') and block.mhc_attn is not None:
+            diag = block.mhc_attn.get_sinkhorn_diagnostics()
+            row_errs.append(diag["row_err"])
+            col_errs.append(diag["col_err"])
+            diag_means.append(diag["diag_mean"])
+            offdiag_means.append(diag["offdiag_mean"])
+    
+    if row_errs:
+        metrics["mhc/sinkhorn_row_err"] = sum(row_errs) / len(row_errs)
+        metrics["mhc/sinkhorn_col_err"] = sum(col_errs) / len(col_errs)
+        metrics["mhc/H_res_diag_mean"] = sum(diag_means) / len(diag_means)
+        metrics["mhc/H_res_offdiag_mean"] = sum(offdiag_means) / len(offdiag_means)
+    
     return metrics
 from nanochat.tokenizer import get_tokenizer, get_token_bytes
 from nanochat.checkpoint_manager import save_checkpoint, load_checkpoint
