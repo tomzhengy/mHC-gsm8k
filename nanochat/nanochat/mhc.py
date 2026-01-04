@@ -109,9 +109,9 @@ class DynamicMHC(nn.Module):
         self.H_post_base = nn.Parameter(torch.zeros(n))
         
         # controllable gate for RL tuning
-        # g=1 (sigmoid(0)=0.5 by default, we init to make sigmoid(gate)≈1)
         # gate interpolates H_res between identity (g=0) and computed (g=1)
-        self.gate = nn.Parameter(torch.tensor([5.0]))  # sigmoid(5) ≈ 0.993
+        # paper initializes γ=0.01 (near identity) for stable training
+        self.gate = nn.Parameter(torch.tensor([-4.6]))  # sigmoid(-4.6) ≈ 0.01
 
         # diagnostics: store errors from actual forward pass (updated in get_matrices)
         self._last_used_row_err = 0.0

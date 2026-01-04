@@ -118,10 +118,6 @@ def collect_mhc_metrics(model):
         metrics["mhc/sinkhorn_row_err_used"] = sum(row_errs_used) / len(row_errs_used)
         metrics["mhc/sinkhorn_col_err_used"] = sum(col_errs_used) / len(col_errs_used)
 
-    # diversity loss (prevents stream collapse)
-    if hasattr(model, '_last_diversity_loss'):
-        metrics["mhc/diversity_loss"] = model._last_diversity_loss
-
     return metrics
 from nanochat.tokenizer import get_tokenizer, get_token_bytes
 from nanochat.checkpoint_manager import save_checkpoint, load_checkpoint
@@ -143,7 +139,6 @@ mhc_enabled = False # enable dynamic mHC (replaces residual connections)
 mhc_num_streams = 4 # expansion rate n (typically 4)
 mhc_sinkhorn_iters = 50 # Sinkhorn iterations for doubly-stochastic projection
 mhc_sinkhorn_tau = 0.1 # temperature (lower = sharper routing)
-mhc_diversity_weight = 0.1 # weight for stream diversity loss (prevents collapse)
 # Training horizon. Only one of these 3 will be used, in this order of precedence.
 num_iterations = -1 # explicit number of steps of the optimization (-1 = disable)
 target_flops = -1.0 # calculate num_iterations to reach target_flops. Useful for scaling laws experiments (-1 = disable)
@@ -228,10 +223,9 @@ model_config_kwargs = dict(
     mhc_num_streams=mhc_num_streams,
     mhc_sinkhorn_iters=mhc_sinkhorn_iters,
     mhc_sinkhorn_tau=mhc_sinkhorn_tau,
-    mhc_diversity_weight=mhc_diversity_weight,
 )
 if mhc_enabled:
-    print0(f"mHC enabled: {mhc_num_streams} streams, {mhc_sinkhorn_iters} Sinkhorn iters, tau={mhc_sinkhorn_tau}, diversity_weight={mhc_diversity_weight}")
+    print0(f"mHC enabled: {mhc_num_streams} streams, {mhc_sinkhorn_iters} Sinkhorn iters, tau={mhc_sinkhorn_tau}")
 with torch.device("meta"):
     # All tensors are created as meta tensors (they have shape/dtype but no data)
     model_config = GPTConfig(**model_config_kwargs)
