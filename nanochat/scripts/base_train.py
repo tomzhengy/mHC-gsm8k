@@ -123,8 +123,8 @@ depth = 20 # the depth of the Transformer model to train, rest of the kwargs are
 max_seq_len = 2048 # max context length
 mhc_enabled = False # enable dynamic mHC (replaces residual connections)
 mhc_num_streams = 4 # expansion rate n (typically 4)
-mhc_sinkhorn_iters = 20 # Sinkhorn iterations for doubly-stochastic projection
-mhc_sinkhorn_tau = 0.05 # temperature (lower = sharper routing)
+mhc_sinkhorn_iters = 50 # Sinkhorn iterations for doubly-stochastic projection
+mhc_sinkhorn_tau = 0.1 # temperature (lower = sharper routing)
 # Training horizon. Only one of these 3 will be used, in this order of precedence.
 num_iterations = -1 # explicit number of steps of the optimization (-1 = disable)
 target_flops = -1.0 # calculate num_iterations to reach target_flops. Useful for scaling laws experiments (-1 = disable)

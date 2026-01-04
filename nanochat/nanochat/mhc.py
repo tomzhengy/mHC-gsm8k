@@ -13,8 +13,8 @@ import torch.nn.functional as F
 
 def sinkhorn_log(
     logits: torch.Tensor,
-    num_iters: int = 20,
-    tau: float = 0.05,
+    num_iters: int = 50,
+    tau: float = 0.1,
 ) -> torch.Tensor:
 
     n = logits.shape[-1]
@@ -37,10 +37,7 @@ def sinkhorn_log(
         # column normalization: v_j = log_marginal - logsumexp_i(Z_ij + u_i)
         v = log_marginal - torch.logsumexp(Z + u.unsqueeze(-1), dim=-2)
     
-    # final row normalization to ensure ROWS sum to exactly 1
-    # this is critical because our einsum uses: x_mixed[i] = sum_j H[i,j] * x[j]
-    # so ROW i provides the weights for output stream i
-    u = log_marginal - torch.logsumexp(Z + v.unsqueeze(-2), dim=-1)
+    # u = log_marginal - torch.logsumexp(Z + v.unsqueeze(-2), dim=-1)
     
     return torch.exp(Z + u.unsqueeze(-1) + v.unsqueeze(-2))
 
@@ -51,8 +48,8 @@ class DynamicMHC(nn.Module):
         self,
         dim: int,
         num_streams: int = 4,
-        sinkhorn_iters: int = 20,
-        sinkhorn_tau: float = 0.05,
+        sinkhorn_iters: int = 50,
+        sinkhorn_tau: float = 0.1,
         layer_idx: int = 0,
         gate_noise: bool = True,
         gate_exploration_prob: float = 0.2,
