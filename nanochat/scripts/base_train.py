@@ -357,11 +357,10 @@ while True:
         if val_bpb < min_val_bpb:
             min_val_bpb = val_bpb
         wandb_run.log({
-            "step": step,
             "total_training_flops": flops_so_far,
             "total_training_time": total_training_time,
             "val/bpb": val_bpb,
-        })
+        }, step=step)
         model.train()
 
     # once in a while: estimate the CORE metric (all ranks participate)
@@ -373,11 +372,10 @@ while True:
             results = evaluate_model(orig_model, tokenizer, device, max_per_task=core_metric_max_per_task)
         print0(f"Step {step:05d} | CORE metric: {results['core_metric']:.4f}")
         wandb_run.log({
-            "step": step,
             "total_training_flops": flops_so_far,
             "core_metric": results["core_metric"],
             "centered_results": results["centered_results"],
-        })
+        }, step=step)
         model.train()
 
     # once in a while: sample from the model (only on master process)
@@ -437,7 +435,7 @@ while True:
     # -------------------------------------------------------------------------
     # single training step
     # enable mHC used diagnostics on logging steps (captures actual H_res during forward)
-    if mhc_enabled and step % 100 == 0:
+    if mhc_enabled and step % 20 == 0:
         for block in orig_model.transformer.h:
             if hasattr(block, 'mhc_attn') and block.mhc_attn is not None:
                 block.mhc_attn.enable_used_diagnostics()
@@ -486,9 +484,8 @@ while True:
         total_training_time += dt # only count the time after the first 10 steps
     print_grad_norm = f" grad norm: {grad_norm:.4f} |" if grad_clip_enabled else ""
     print0(f"step {step:05d}/{num_iterations:05d} ({pct_done:.2f}%) | loss: {debiased_smooth_loss:.6f} |{print_grad_norm} lrm: {lrm:.2f} | dt: {dt * 1000:.2f}ms | tok/sec: {tok_per_sec:,} | mfu: {mfu:.2f} | total time: {total_training_time/60:.2f}m")
-    if step % 100 == 0:
+    if step % 20 == 0:
         log_data = {
-            "step": step,
             "total_training_flops": flops_so_far,
             "total_training_time": total_training_time,
             "train/loss": debiased_smooth_loss,
@@ -503,7 +500,7 @@ while True:
         if mhc_enabled:
             mhc_metrics = collect_mhc_metrics(orig_model)
             log_data.update(mhc_metrics)
-        wandb_run.log(log_data)
+        wandb_run.log(log_data, step=step)
 
     # state update
     step += 1
