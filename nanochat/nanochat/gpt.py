@@ -27,6 +27,7 @@ class GPTConfig:
     mhc_gate_noise: bool = False      # OFF by default - verify baseline first, then enable for RL
     mhc_gate_explore_prob: float = 0.2  # probability of sampling random gate [0.1,0.9]
     mhc_gate_noise_scale: float = 0.3   # ±30% perturbation when not exploring
+    mhc_diversity_weight: float = 0.1   # weight for stream diversity loss (prevents collapse)
 
 
 def norm(x):
@@ -176,10 +177,13 @@ class GPT(nn.Module):
         self.mhc_num_streams = config.mhc_num_streams if config.mhc_enabled else 1
         
         # learnable stream embeddings to differentiate streams
-        # initialized to small random values to break symmetry from step 0
+        # initialized orthogonally to prevent stream collapse (streams becoming identical)
         # each stream gets a unique learned offset, allowing specialization during training
         if self.mhc_enabled:
-            self.stream_embed = nn.Parameter(torch.randn(config.mhc_num_streams, config.n_embd) * 0.001)
+            stream_embed_init = torch.empty(config.mhc_num_streams, config.n_embd)
+            nn.init.orthogonal_(stream_embed_init)
+            self.stream_embed = nn.Parameter(stream_embed_init * 0.02)  # scale down but keep orthogonality
+            self._last_diversity_loss = 0.0  # will be updated during forward pass
         # To support meta device initialization, we init the rotary embeddings here, but it's just "fake" meta tensors only.
         # As for rotary_seq_len, these rotary embeddings are pretty small/cheap in memory,
         # so let's just over-compute them by 10X, but assert fail if we ever reach that amount.
@@ -360,6 +364,20 @@ class GPT(nn.Module):
             # training: given the targets, compute and return the loss
             # TODO experiment with chunked cross-entropy?
             loss = F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1), ignore_index=-1, reduction=loss_reduction)
+
+            # add diversity loss to prevent stream collapse (streams becoming identical)
+            if self.mhc_enabled and self.config.mhc_diversity_weight > 0:
+                se = self.stream_embed  # (n_streams, n_embd)
+                se_norm = se / (se.norm(dim=1, keepdim=True) + 1e-8)
+                sim_matrix = se_norm @ se_norm.T  # (n_streams, n_streams)
+                # penalize off-diagonal similarities (we want streams to be different)
+                n = se.shape[0]
+                off_diag_mask = ~torch.eye(n, dtype=torch.bool, device=se.device)
+                diversity_loss = sim_matrix[off_diag_mask].mean()  # mean cosine similarity
+                # store for logging (will be collected by collect_mhc_metrics)
+                self._last_diversity_loss = diversity_loss.item()
+                loss = loss + self.config.mhc_diversity_weight * diversity_loss
+
             return loss
         else:
             # inference: just return the logits directly
