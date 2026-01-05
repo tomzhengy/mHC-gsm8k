@@ -9,6 +9,7 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils._pytree import tree_flatten, tree_unflatten
 
 
 def sinkhorn_log(
@@ -197,22 +198,29 @@ class DynamicMHC(nn.Module):
         
         # === BRANCH ===
         # apply attention or MLP
-        y = branch_fn(x_pre)  # [B, T, C]
-        
+        branch_out = branch_fn(x_pre)
+
+        # handle multi-output branches (e.g., attention + weights)
+        # tree_flatten extracts all leaf tensors; first is main output, rest are auxiliary
+        (y, *rest), tree_spec = tree_flatten(branch_out)
+
         # === DEPTH CONNECTION ===
         # residual mixing (per mHC paper): x_res[b,t,i,c] = sum_j H_res[b,t,i,j] * x[b,t,j,c]
         # H_res[i,j] = weight from input stream j to output stream i (standard matrix convention)
         x_mixed = torch.einsum('btij,btjc->btic', H_res, x_streams)  # [B, T, n, C]
-        
+
         # distribute branch output to streams
         # y_distributed[b,t,j,c] = H_post[b,t,j] * y[b,t,c]
         y_distributed = torch.einsum('btc,btn->btnc', y, H_post)  # [B, T, n, C]
-        
+
         # combine: x_{l+1} = H_res @ x_l + H_post * F(...)
         output = x_mixed + y_distributed  # [B, T, n, C]
-        
+
         # flatten back: [B, T, n, C] -> [B, T, n*C]
-        return output.view(B, T, nC)
+        output = output.view(B, T, nC)
+
+        # reconstruct original structure with processed main output
+        return tree_unflatten((output, *rest), tree_spec)
     
     def set_gate(self, value: float):
 
@@ -358,6 +366,42 @@ if __name__ == "__main__":
     print(f"   reduced shape: {x_reduced.shape}")
     # reduced should be 4x the original (since we sum 4 copies)
     print(f"   reduced ≈ 4 * original: {torch.allclose(x_reduced, 4 * x_single)}")
-    
+
+    # test multi-output branches
+    print("\n5. testing multi-output branches...")
+    mhc2 = DynamicMHC(dim=64, num_streams=4, sinkhorn_iters=20, sinkhorn_tau=0.05)
+    mhc2.eval()
+    x2 = torch.randn(B, T, n * C)
+
+    # tuple output
+    def branch_with_weights(z):
+        out = z * 0.5
+        weights = torch.randn(B, T, 8)  # fake attention weights
+        return out, weights
+
+    result = mhc2(x2, branch_with_weights)
+    assert isinstance(result, tuple), "should return tuple"
+    assert len(result) == 2, "should have 2 elements"
+    print(f"   tuple output: main={result[0].shape}, aux={result[1].shape}")
+
+    # dict output
+    def branch_with_dict(z):
+        out = z * 0.5
+        aux = {"weights": torch.randn(B, T, 8), "loss": torch.tensor(0.5)}
+        return out, aux
+
+    result2 = mhc2(x2, branch_with_dict)
+    assert isinstance(result2, tuple), "should return tuple"
+    assert isinstance(result2[1], dict), "second element should be dict"
+    print(f"   dict output: main={result2[0].shape}, aux keys={list(result2[1].keys())}")
+
+    # verify backward compat - single output still works
+    def single_output_branch(z):
+        return z * 0.5
+
+    result3 = mhc2(x2, single_output_branch)
+    assert isinstance(result3, torch.Tensor), "single output should return tensor"
+    print(f"   single output: {result3.shape}")
+
     print("\n✓ all tests passed!")
 
