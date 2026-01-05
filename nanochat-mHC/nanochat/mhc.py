@@ -118,7 +118,25 @@ class DynamicMHC(nn.Module):
         self._last_used_row_err = 0.0
         self._last_used_col_err = 0.0
         self._log_used_diagnostics = False  # set True to capture on next forward
-    
+
+    def _init_params(self):
+        """Re-initialize params after to_empty() wipes them."""
+        n = self.num_streams
+        # gate: sigmoid(-4.6) ≈ 0.01
+        self.gate.data.fill_(-4.6)
+        # H_res_base: -0.5 off-diagonal, 0.0 diagonal
+        self.H_res_base.data.fill_(-0.5)
+        self.H_res_base.data.fill_diagonal_(0.0)
+        # H_pre_base: stream 0 preferred
+        self.H_pre_base.data.zero_()
+        self.H_pre_base.data[0] = 1.0
+        # H_post_base: uniform
+        self.H_post_base.data.zero_()
+        # projections: small normal
+        nn.init.normal_(self.proj_H_res.weight, std=0.01)
+        nn.init.normal_(self.proj_H_pre.weight, std=0.01)
+        nn.init.normal_(self.proj_H_post.weight, std=0.01)
+
     def get_matrices(self, x: torch.Tensor):
 
         B, T, _ = x.shape

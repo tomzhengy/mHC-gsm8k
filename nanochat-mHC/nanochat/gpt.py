@@ -231,6 +231,16 @@ class GPT(nn.Module):
         if self.transformer.wte.weight.device.type == "cuda":
             self.transformer.wte.to(dtype=torch.bfloat16)
 
+        # mHC parameters (wiped by to_empty, need re-init)
+        if self.mhc_enabled:
+            nn.init.orthogonal_(self.stream_embed)
+            self.stream_embed.data *= 0.02
+            for block in self.transformer.h:
+                if hasattr(block, 'mhc_attn'):
+                    block.mhc_attn._init_params()
+                if hasattr(block, 'mhc_mlp'):
+                    block.mhc_mlp._init_params()
+
     def _precompute_rotary_embeddings(self, seq_len, head_dim, base=10000, device=None):
         # TODO: bump base theta more? e.g. 100K is more common more recently
         # autodetect the device from model embeddings
