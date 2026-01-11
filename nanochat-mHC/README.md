@@ -48,15 +48,15 @@ You can also `cat report.md` file which appeared in the project directory and co
 - Tokens (approx): 83,497
 - Dependencies (uv.lock lines): 2,004
 
-| Metric          | BASE     | MID      | SFT      | RL       |
-|-----------------|----------|----------|----------|----------|
-| CORE            | 0.2219   | -        | -        | -        |
-| ARC-Challenge   | -        | 0.2875   | 0.2807   | -        |
-| ARC-Easy        | -        | 0.3561   | 0.3876   | -        |
-| GSM8K           | -        | 0.0250   | 0.0455   | 0.0758   |
-| HumanEval       | -        | 0.0671   | 0.0854   | -        |
-| MMLU            | -        | 0.3111   | 0.3151   | -        |
-| ChatCORE        | -        | 0.0730   | 0.0884   | -        |
+| Metric        | BASE   | MID    | SFT    | RL     |
+| ------------- | ------ | ------ | ------ | ------ |
+| CORE          | 0.2219 | -      | -      | -      |
+| ARC-Challenge | -      | 0.2875 | 0.2807 | -      |
+| ARC-Easy      | -      | 0.3561 | 0.3876 | -      |
+| GSM8K         | -      | 0.0250 | 0.0455 | 0.0758 |
+| HumanEval     | -      | 0.0671 | 0.0854 | -      |
+| MMLU          | -      | 0.3111 | 0.3151 | -      |
+| ChatCORE      | -      | 0.0730 | 0.0884 | -      |
 
 Total wall clock time: 3h51m
 

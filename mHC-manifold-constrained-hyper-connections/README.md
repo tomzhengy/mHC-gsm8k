@@ -16,6 +16,7 @@ with the key constraints:
 ### Implementation direction
 
 Static per-layer matrices:
+
 - learn `H_res_logits ∈ R^{s×s}` and project to `H_res` with Sinkhorn
 - learn `H_pre_logits`, `H_post_logits` and map to non-negative weights (e.g. softmax)
 
@@ -26,6 +27,7 @@ This is a research prototype aimed at correctness + clarity, not the paper's sys
 Run from `examples/nanogpt/`. Adjust `--nproc_per_node` to match your GPU count.
 
 **6-layer configs (~20M params):**
+
 ```bash
 python train.py config/train_fineweb10B.py
 python train.py config/train_fineweb10B_hc.py
@@ -34,6 +36,7 @@ python train.py config/train_fineweb10B_vres.py
 ```
 
 **48-layer configs (~20M params):**
+
 ```bash
 python train.py config/train_fineweb10B_48l.py
 python train.py config/train_fineweb10B_hc_48l.py
@@ -42,20 +45,22 @@ python train.py config/train_fineweb10B_vres_48l.py
 ```
 
 **Multi-GPU example:**
+
 ```bash
 torchrun --standalone --nproc_per_node=4 train.py config/train_fineweb10B_mhc_48l.py
 ```
 
 #### Orthostochastic mHC option
+
 mHC supports an orthostochastic H_res projection via Newton-Schulz. Set `mhc_h_res_proj = "orthostochastic"` in your config and keep `ns_steps`, `ns_eps`, `ns_coeffs` as provided in the mHC configs.
 
 ### Next steps planned
+
 - [x] Value residual ablations with baseline/HC/mHC
 - [ ] AltUP ablation
 - [x] H^res = `(1−α)*I + α*S` instead of full doubly stochastic (branch: `feat/mhc-residual-identity-mix`)
 - [ ] Replace sinkhorn-knopp w/ Muon's orthogonalization op
 - [ ] U-net-based variants + value embeddings
-
 
 ### Acknowledgements
 
