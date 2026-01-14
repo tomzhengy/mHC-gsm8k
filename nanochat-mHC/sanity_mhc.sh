@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-STEPS=${1:-300}  # default 300 steps, can override via CLI: ./sanity_mhc.sh 500
+STEPS=${1:-5000}  # default 5000 steps, can override via CLI: ./sanity_mhc.sh 500
 DEPTH=${2:-12}   # smaller model for quick sanity check
 WANDB_RUN=${WANDB_RUN:-"mhc-sanity-$(date +%Y%m%d-%H%M%S)"}
 
