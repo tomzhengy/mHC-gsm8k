@@ -434,12 +434,6 @@ while True:
 
     # -------------------------------------------------------------------------
     # single training step
-    # enable mHC used diagnostics on logging steps (captures actual H_res during forward)
-    if mhc_enabled and step % 20 == 0:
-        for block in orig_model.transformer.h:
-            if hasattr(block, 'mhc_attn') and block.mhc_attn is not None:
-                block.mhc_attn.enable_used_diagnostics()
-
     # evaluate the gradient
     synchronize()
     t0 = time.time()

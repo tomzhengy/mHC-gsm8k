@@ -118,9 +118,9 @@ class DynamicMHC(nn.Module):
 
         # diagnostics: store errors from actual forward pass (updated in get_matrices)
         # stored as tensors to avoid graph breaks from .item() during forward
+        # always computed (no conditional) for torch.compile compatibility
         self.register_buffer('_last_used_row_err', torch.tensor(0.0), persistent=False)
         self.register_buffer('_last_used_col_err', torch.tensor(0.0), persistent=False)
-        self._log_used_diagnostics = False  # set True to capture on next forward
 
     def _init_params(self):
         """Re-initialize params after to_empty() wipes them."""
@@ -190,15 +190,13 @@ class DynamicMHC(nn.Module):
         I = torch.eye(n, device=H_res.device, dtype=H_res.dtype)
         H_res = (1.0 - g) * I + g * H_res
 
-        # capture diagnostics from actual forward pass (when requested)
-        # store as tensors to avoid graph breaks - .item() called at retrieval time
-        if self._log_used_diagnostics:
-            with torch.no_grad():
-                row_sums = H_res.sum(dim=-1)  # [B, T, n]
-                col_sums = H_res.sum(dim=-2)  # [B, T, n]
-                self._last_used_row_err.copy_((row_sums - 1).abs().mean())
-                self._last_used_col_err.copy_((col_sums - 1).abs().mean())
-            self._log_used_diagnostics = False  # reset flag
+        # always compute diagnostics (no conditional for torch.compile compatibility)
+        # cost is negligible - just tensor sums
+        with torch.no_grad():
+            row_sums = H_res.sum(dim=-1)  # [B, T, n]
+            col_sums = H_res.sum(dim=-2)  # [B, T, n]
+            self._last_used_row_err.copy_((row_sums - 1).abs().mean())
+            self._last_used_col_err.copy_((col_sums - 1).abs().mean())
 
         return H_res, H_pre, H_post
 
@@ -307,12 +305,8 @@ class DynamicMHC(nn.Module):
             "offdiag_mean": H_res[~torch.eye(n, dtype=bool, device=H_res.device)].mean().item(),
         }
 
-    def enable_used_diagnostics(self):
-        """Call before forward pass to capture diagnostics on actual H_res."""
-        self._log_used_diagnostics = True
-
     def get_used_diagnostics(self) -> dict:
-        """Get row/col errors from the last forward pass (after enable_used_diagnostics was called)."""
+        """Get row/col errors from the last forward pass."""
         return {
             "row_err_used": self._last_used_row_err.item(),
             "col_err_used": self._last_used_col_err.item(),
