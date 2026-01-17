@@ -129,6 +129,7 @@ print_banner()
 # -----------------------------------------------------------------------------
 # User settings
 run = "dummy" # wandb run name default ("dummy" is special - we won't log to wandb)
+seed = -1 # random seed for reproducibility (-1 = no seed, use random)
 # Runtime
 device_type = "" # cuda|cpu|mps (empty => autodetect good device type default, in order: CUDA > MPS > CPU)
 skip_compile = False # skip torch.compile (useful for debugging or when compile takes too long with mHC)
@@ -168,6 +169,16 @@ model_tag = "" # optionally override the model tag for the output checkpoint dir
 config_keys = [k for k,v in globals().items() if not k.startswith('_') and isinstance(v, (int, float, bool, str))]
 exec(open(os.path.join('nanochat', 'configurator.py')).read()) # overrides from command line or config file
 user_config = {k: globals()[k] for k in config_keys} # will be useful for logging
+
+# set random seed for reproducibility
+if seed != -1:
+    import random
+    import numpy as np
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    print(f"Random seed set to {seed}")
 # -----------------------------------------------------------------------------
 
 # Compute init
