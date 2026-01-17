@@ -1,0 +1,51 @@
+# mHC sanity check configuration
+# usage: python -m scripts.base_train --config=configs/mhc_sanity.yaml
+
+# user settings
+run: "mhc-sanity"
+seed: 42
+
+# runtime
+device_type: ""
+skip_compile: false
+
+# model architecture
+depth: 12
+max_seq_len: 2048
+
+# mHC enabled
+mhc_enabled: true
+mhc_num_streams: 4
+mhc_sinkhorn_iters: 50
+mhc_sinkhorn_tau: 0.1
+
+# training
+num_iterations: 5000
+target_flops: -1.0
+target_param_data_ratio: -1
+
+# optimization
+device_batch_size: 32
+total_batch_size: 524288
+embedding_lr: 0.2
+unembedding_lr: 0.004
+weight_decay: 0.0
+matrix_lr: 0.02
+grad_clip: 1.0
+warmup_ratio: 0.0
+warmdown_ratio: 0.2
+final_lr_frac: 0.0
+
+# checkpointing
+resume_from_step: -1
+save_every: -1
+
+# evaluation
+eval_every: 500
+eval_tokens: 10485760
+core_metric_every: -1
+core_metric_max_per_task: 500
+sample_every: 2000
+
+# output
+model_tag: ""

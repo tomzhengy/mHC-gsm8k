@@ -1,0 +1,52 @@
+# default training configuration
+# usage: python -m scripts.base_train --config=configs/default.yaml
+# CLI args override YAML values, e.g.: --depth=12 --mhc_enabled=True
+
+# user settings
+run: "dummy" # wandb run name ("dummy" = no logging)
+seed: -1 # random seed (-1 = no seed)
+
+# runtime
+device_type: "" # cuda|cpu|mps (empty = autodetect)
+skip_compile: false # skip torch.compile
+
+# model architecture
+depth: 20 # transformer depth (model_dim = depth * 64)
+max_seq_len: 2048 # max context length
+
+# mHC (multi-head communication)
+mhc_enabled: false # enable dynamic mHC
+mhc_num_streams: 4 # number of residual streams
+mhc_sinkhorn_iters: 50 # sinkhorn iterations
+mhc_sinkhorn_tau: 0.1 # sinkhorn temperature
+
+# training horizon (first enabled option is used)
+num_iterations: -1 # explicit steps (-1 = disable)
+target_flops: -1.0 # target FLOPs (-1 = disable)
+target_param_data_ratio: 20 # chinchilla ratio (-1 = disable)
+
+# optimization
+device_batch_size: 32 # per-device batch size
+total_batch_size: 524288 # total batch size in tokens
+embedding_lr: 0.2 # embedding learning rate (Adam)
+unembedding_lr: 0.004 # unembedding learning rate (Adam)
+weight_decay: 0.0 # weight decay (Adam)
+matrix_lr: 0.02 # matrix learning rate (Muon)
+grad_clip: 1.0 # gradient clipping (0 = disabled)
+warmup_ratio: 0.0 # LR warmup ratio
+warmdown_ratio: 0.2 # LR warmdown ratio
+final_lr_frac: 0.0 # final LR fraction
+
+# checkpointing
+resume_from_step: -1 # resume from step (-1 = disable)
+save_every: -1 # save every N steps (-1 = only at end)
+
+# evaluation
+eval_every: 250 # eval val loss every N steps
+eval_tokens: 10485760 # tokens for val loss (20 * 524288)
+core_metric_every: 2000 # core metric every N steps (-1 = disable)
+core_metric_max_per_task: 500 # examples per task
+sample_every: 2000 # sample every N steps
+
+# output
+model_tag: "" # override checkpoint dir name
